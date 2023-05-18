@@ -1,19 +1,19 @@
 package com.rosteelton.processor.model
 
-import com.github.tototoshi.csv.CSVFormat
-import eu.timepit.refined.types.numeric.NonNegDouble
+import com.rosteelton.processor.utils.CsvHelper
+import eu.timepit.refined.types.numeric.NonNegBigDecimal
 import eu.timepit.refined.types.string.NonEmptyString
 
 case class Product(
     productId: NonEmptyString,
     name: String,
     description: Option[String],
-    amount: NonNegDouble,
+    amount: NonNegBigDecimal,
     sumOfStocks: Int
 ) {
-  def toCsvLine(implicit format: CSVFormat): String =
-    List(productId.value, name, description.getOrElse(""), amount.value.toString, sumOfStocks.toString)
-      .mkString(format.delimiter.toString)
+  def toCsvLine: String =
+    List(productId.value, name, description.getOrElse(""), amount.value.setScale(2).toString(), sumOfStocks.toString)
+      .mkString(CsvHelper.delimiter.toString)
 }
 
 object Product {

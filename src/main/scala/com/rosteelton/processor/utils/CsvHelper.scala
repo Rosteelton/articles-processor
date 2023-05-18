@@ -1,10 +1,12 @@
 package com.rosteelton.processor.utils
 
-import com.github.tototoshi.csv.DefaultCSVFormat
-
 object CsvHelper {
-  implicit object Format extends DefaultCSVFormat {
-    override val delimiter              = '|'
-    override val lineTerminator: String = "\n"
-  }
+  val delimiter              = '|'
+  val lineTerminator: String = "\n"
+
+  def splitLine(input: String): List[String] =
+    input.split(CsvHelper.delimiter).toList
+
+  def withLineTerminator(input: String): String =
+    s"$input$lineTerminator"
 }

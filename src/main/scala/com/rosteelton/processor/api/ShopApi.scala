@@ -1,19 +1,9 @@
 package com.rosteelton.processor.api
 
-import com.rosteelton.processor.api.ShopApi.ShopApiError
 import com.rosteelton.processor.model.Article
-import zio.IO
+import com.rosteelton.processor.utils.AppError
+import zio.stream.ZStream
 
 trait ShopApi {
-  def getArticles(limit: Int): IO[ShopApiError, List[Article]]
-}
-
-object ShopApi {
-  sealed trait ShopApiError {
-    def error: String
-  }
-  object ShopApiError {
-    case class ParsingArticleError(error: String) extends ShopApiError
-    case class SttpError(error: String)           extends ShopApiError
-  }
+  def getArticles(limit: Int): ZStream[Any, AppError, Article]
 }

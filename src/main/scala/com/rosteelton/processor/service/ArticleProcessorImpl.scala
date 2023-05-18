@@ -3,24 +3,20 @@ package com.rosteelton.processor.service
 import com.rosteelton.processor.api.{ServiceProviderApi, ShopApi}
 import com.rosteelton.processor.model.{Article, Product}
 import com.rosteelton.processor.utils.AppError
-import zio.{IO, ZIO, ZLayer}
+import zio.stream.ZStream
+import zio.{IO, NonEmptyChunk, ZIO, ZLayer}
 
 class ArticleProcessorImpl(shopApi: ShopApi, serviceProviderApi: ServiceProviderApi) extends ArticleProcessor {
-  def process(articlesCount: Int): IO[AppError, Unit] =
-    for {
-      articles <-
+  def process(articlesCount: Int): IO[AppError, Unit] = {
+    val products = ArticleProcessorImpl
+      .convertArticles(
         shopApi
           .getArticles(articlesCount)
-          .tapError(err => ZIO.logError(err.error))
-          .mapError(err => AppError.ShopApiError(err.error))
-      _ <- ZIO.logInfo(s"Some arcticles: ${articles.take(10).mkString("\n")}")
-      products = ArticleProcessorImpl.convertToProducts(articles)
-      _ <-
-        serviceProviderApi
-          .uploadProducts(products, articlesCount)
-          .mapError(err => AppError.ServiceProviderError(err.message))
-          .when(articles.nonEmpty)
-    } yield ()
+      )
+
+    serviceProviderApi
+      .uploadProducts(products, articlesCount)
+  }
 }
 
 object ArticleProcessorImpl {
@@ -32,16 +28,30 @@ object ArticleProcessorImpl {
       } yield new ArticleProcessorImpl(shopApi, providerApi)
     }
 
-  private[service] def convertToProducts(articles: List[Article]): List[Product] = {
-    articles
-      .groupMapReduce(_.productId.value)(Product.fromArticle) {
-        case (acc, next) =>
-          if (next.amount.value < acc.amount.value && next.sumOfStocks > 0) {
-            next.copy(sumOfStocks = next.sumOfStocks + acc.sumOfStocks)
-          } else acc.copy(sumOfStocks = acc.sumOfStocks + next.sumOfStocks)
+  private[service] def convertArticles(input: ZStream[Any, AppError, Article]): ZStream[Any, AppError, Product] =
+    input
+      .tapError(err => ZIO.logError(err.getMessage))
+      .groupAdjacentBy(_.productId.value)
+      .map(_._2)
+      .map(foldProductArticles)
+      .collectSome
+
+  private[service] def foldProductArticles(productArticles: NonEmptyChunk[Article]): Option[Product] = {
+    productArticles
+      .foldLeft(Option.empty[Product]) {
+        case (result, next) =>
+          if (next.stock.value > 0) {
+            val newProduct = Product.fromArticle(next)
+            result match {
+              case Some(currentResult) =>
+                if (currentResult.amount.value > newProduct.amount.value)
+                  Some(newProduct.copy(sumOfStocks = newProduct.sumOfStocks + currentResult.sumOfStocks))
+                else {
+                  Some(currentResult.copy(sumOfStocks = currentResult.sumOfStocks + newProduct.sumOfStocks))
+                }
+              case None => Some(newProduct)
+            }
+          } else result
       }
-      .values
-      .filter(_.sumOfStocks > 0)
-      .toList
   }
 }

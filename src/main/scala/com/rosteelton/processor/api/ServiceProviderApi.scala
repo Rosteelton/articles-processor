@@ -1,13 +1,10 @@
 package com.rosteelton.processor.api
 
-import com.rosteelton.processor.api.ServiceProviderApi.ServiceProviderApiError
 import com.rosteelton.processor.model.Product
+import com.rosteelton.processor.utils.AppError
 import zio.IO
+import zio.stream.ZStream
 
 trait ServiceProviderApi {
-  def uploadProducts(products: List[Product], articlesCount: Int): IO[ServiceProviderApiError, Unit]
-}
-
-object ServiceProviderApi {
-  case class ServiceProviderApiError(message: String)
+  def uploadProducts(products: ZStream[Any, AppError, Product], articlesCount: Int): IO[AppError, Unit]
 }

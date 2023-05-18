@@ -1,14 +1,17 @@
 package com.rosteelton.processor.model
 
+import cats.implicits.toBifunctorOps
 import eu.timepit.refined.types.all.NonEmptyString
-import eu.timepit.refined.types.numeric.{NonNegDouble, NonNegInt}
+import eu.timepit.refined.types.numeric.{NonNegBigDecimal, NonNegInt}
+
+import scala.util.Try
 
 case class Article(
     id: NonEmptyString,
     productId: NonEmptyString,
     name: String,
     description: Option[String],
-    amount: NonNegDouble,
+    amount: NonNegBigDecimal,
     stock: NonNegInt
 )
 
@@ -19,8 +22,11 @@ object Article {
         for {
           id        <- NonEmptyString.from(id)
           productId <- NonEmptyString.from(productId)
-          amount    <- amount.toDoubleOption.toRight(s"Wrong amount format: ${amount}").flatMap(NonNegDouble.from)
-          stock     <- stock.toIntOption.toRight(s"Wrong stock format: $stock").flatMap(NonNegInt.from)
+          amount <-
+            Try(BigDecimal(amount)).toEither
+              .leftMap(_ => s"Wrong amount format: ${amount}")
+              .flatMap(NonNegBigDecimal.from)
+          stock <- stock.toIntOption.toRight(s"Wrong stock format: $stock").flatMap(NonNegInt.from)
         } yield Article(
           id,
           productId,

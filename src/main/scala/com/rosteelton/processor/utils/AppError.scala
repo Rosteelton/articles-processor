@@ -6,4 +6,5 @@ sealed abstract class AppError(error: String) extends Exception(error) with NoSt
 object AppError {
   case class ShopApiError(error: String)         extends AppError(error)
   case class ServiceProviderError(error: String) extends AppError(error)
+  case class ParsingError(error: String)         extends AppError(error)
 }
